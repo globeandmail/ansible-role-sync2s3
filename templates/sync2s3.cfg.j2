@@ -1,0 +1,9 @@
+[default]
+aws_access_key_id={{ item.creds.access_key }}
+aws_secret_access_key={{ item.creds.secret_key }}
+region={{ item.creds.region }}
+s3 =
+  max_concurrent_requests = 10
+  max_queue_size = 10000
+  multipart_threshold = 64MB
+  multipart_chunksize = 16MB

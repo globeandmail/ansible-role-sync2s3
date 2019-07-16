@@ -1,0 +1,12 @@
+---
+sync2s3:
+- name: yoursync
+  install_path: "/tmp/sync2s3"
+  watch_path: "/tmp/sync2s3-src"
+  bucket: "some-s3-bucket"
+  user: somebody
+  grp: somegroup
+  creds:
+    access_key: !vault
+    secret_key: !vault
+    region: "aws-region-here"
