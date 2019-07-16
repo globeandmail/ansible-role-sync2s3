@@ -5,32 +5,5 @@
     state: "present"
 
 - name: install scripts, configs, and @reboot-cronjob...
-  block:
-  - name: place sync script
-    template:
-      src: "sync2s3.sh.j2"
-      dest: "{{ item.install_path }}/sync2s3_{{ item.name }}.sh"
-      mode: 0755
-      owner: "{{ item.user }}"
-      group: "{{ item.grp | default(item.user) }}"
-  - name: place config file
-    template:
-      src: "sync2s3.cfg.j2"
-      dest: "{{ item.install_path }}/sync2s3_{{ item.name }}.cfg"
-      mode: 0600
-      owner: "{{ item.user }}"
-      group: "{{ item.grp|default(item.user) }}"
-  - name: place logrotate file
-    template:
-      src: "sync2s3.logrotate.j2"
-      dest: "/etc/logrotate.d/sync2s3_{{ item.name }}"
-      mode: 0644
-      owner: "root"
-      group: "root"
-  - name: cronjob to ensure task is running (@reboot)
-    cron:
-      name: "sync2s3_{{item.name}}"
-      special_time: "reboot"
-      job: "{{ item.install_path/sync2s3_{{ item.name }}.sh > /dev/null &"
-      user: "{{ item.user }}"
+  include_task: install_files.yml
   with_items: "{{ sync2s3 | default([]) }}"
