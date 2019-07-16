@@ -24,5 +24,5 @@
   cron:
     name: "sync2s3_{{item.name}}"
     special_time: "reboot"
-    job: "{{ item.install_path/sync2s3_{{ item.name }}.sh > /dev/null &"
+    job: "{{ item.install_path }}/sync2s3_{{ item.name }}.sh > /dev/null &"
     user: "{{ item.user }}"
