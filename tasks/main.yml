@@ -5,5 +5,5 @@
     state: "present"
 
 - name: install scripts, configs, and @reboot-cronjob...
-  include_task: install_files.yml
+  include_tasks: install_files.yml
   with_items: "{{ sync2s3 | default([]) }}"
