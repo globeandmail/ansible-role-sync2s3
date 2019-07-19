@@ -1,4 +1,15 @@
 ---
+- name: mk necessary dir(s)
+  file:
+    path: "{{ newdir }}"
+    state: "directory"
+    owner: "{{ item.user }}"
+    group: "{{ item.grp|default(item.user) }}"
+  with_items:
+  - "{{ item.install_path }}"
+  - "{{ item.watch_path }}"
+  loop_control:
+    loop_var: newdir
 - name: place sync script
   template:
     src: "sync2s3.sh.j2"
