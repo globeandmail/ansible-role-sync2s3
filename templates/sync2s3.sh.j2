@@ -47,8 +47,12 @@ until (false) ; do
 
         # determine the s3 obj key
         prefix=`echo $dirName | sed "s|^$WATCHPATH/\?||"`
-        targetPath="{{item.name}}/$prefix/$fName"
-
+        if [ "$prefix" == "" ]; then
+            targetPath="{{item.name}}/$fName"
+        else
+            targetPath="{{item.name}}/$prefix/$fName"
+        fi
+        
         # don't bother trying to copy directories
         if [ -d "$dirName/$fName" ]; then continue; fi
         # skip files that don't actually exist (or we can't read)
