@@ -2,12 +2,12 @@
 # {{ ansible_managed }}
 
 SCRIPT_DIR=`dirname "$0"`
-INW=`which inotifywait`
 AWSCLI_EXE=`which aws`
 WATCHPATH="{{ item.watch_path }}"
 BUCKET_NAME="{{ item.bucket }}"
 PIDFILE="$SCRIPT_DIR/sync2s3_{{item.name}}.pid"
 AWS_CONFIG_FILE="$SCRIPT_DIR/sync2s3_{{item.name}}.cfg"
+POLLING_INTERVAL="10"
 
 # direct output to logfile
 exec 2>&1
@@ -17,8 +17,8 @@ set -e
 
 # preflight checks
 if [ ! -x $AWSCLI_EXE ]; then echo "Could not find awscli!" ; exit 1 ; fi
-if [ ! -x $INW ]; then echo "Could not find inotifywait!" ; exit 1 ; fi
 if [ ! -d $WATCHPATH ]; then echo "Source dir (watchpath) does not exist"; exit 1 ; fi
+if [ "$WATCHPATH" == "/" ]; then echo "WATCHPATH is root dir...?!" ; exit 1 ; fi
 if [ "$BUCKET_NAME" == "" ]; then echo "No bucket name...?" ; exit 1 ; fi
 
 # Is this task already running?
@@ -38,36 +38,47 @@ echo $$ > "$PIDFILE"
 # log startup
 echo "`date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} now watching $WATCHPATH for sync to s3://$BUCKET_NAME/{{item.name}}/..."
 
-$INW -qmr -e modify -e moved_to --format "%w%f" "$WATCHPATH" |
-while read watchLine; do
-    # declare dir + file names
-    dirName="`dirname "$watchLine"`"
-    fName="`basename "$watchLine"`"
+# poll the src directory
+until (false) ; do
+    find "$WATCHPATH" -type f | while read watchLine ; do
+        # declare dir + file names
+        dirName="`dirname "$watchLine"`"
+        fName="`basename "$watchLine"`"
 
-    # determine the s3 obj key
-    prefix=`echo $dirName | sed "s|^$WATCHPATH/\?||"`
-    targetPath="{{item.name}}/$prefix/$fName"
+        # determine the s3 obj key
+        prefix=`echo $dirName | sed "s|^$WATCHPATH/\?||"`
+        targetPath="{{item.name}}/$prefix/$fName"
 
-    # don't bother trying to copy directories
-    if [ -d "$dirName/$fName" ]; then continue; fi
-    # skip files that don't actually exist (or we can't read)
-    if [ ! -r "$dirName/$fName" ]; then continue; fi
+        # don't bother trying to copy directories
+        if [ -d "$dirName/$fName" ]; then continue; fi
+        # skip files that don't actually exist (or we can't read)
+        if [ ! -r "$dirName/$fName" ]; then continue; fi
 
-    # log each transfer
-    echo -n "`date '+%Y-%m-%d %H:%M:%S'` : '$dirName/$fName' to 's3://$BUCKET_NAME/$targetPath' ... "
+        # log each transfer
+        echo -n "`date '+%Y-%m-%d %H:%M:%S'` : '$dirName/$fName' to 's3://$BUCKET_NAME/$targetPath' ... "
 
-    # explicitly set mime-type for .vtt files
-    if [[ "$fName" = *".vtt" ]]; then
-        echo dryrun $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --no-guess-mime-type --content-type 'text/vtt' --only-show-errors
-    else
-        echo dryrun $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --only-show-errors
-    fi
+        # explicitly set mime-type for .vtt files
+        if [[ "$fName" = *".vtt" ]]; then
+            echo dryrun $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --no-guess-mime-type --content-type 'text/vtt' --only-show-errors
+        else
+            echo dryrun $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --only-show-errors
+        fi
 
-    # remove file to indicate successful upload, but leave the file alone if cp fails
-    if [ $? == 0 ]; then
-        echo "OK"
-        [ -r "$dirName/$fName" ] && rm "$dirName/$fName"
-    else
-        echo "FAIL"
-    fi
+        # remove file to indicate successful upload, but leave the file alone if cp fails
+        if [ $? == 0 ]; then
+            echo "OK"
+            [ -r "$dirName/$fName" ] && rm "$dirName/$fName"
+        else
+            echo "FAIL"
+        fi
+    done
+
+    # clean up empty subdirs (but maybe we want to preserve the dir structure; commented out!)
+    # find "$WATCHPATH/"* -maxdepth 0 -type d | while read tDir ; do
+    #     if [ "$(find "$tDir" -type f | wc -l)" == "0" ]; then
+    #         echo "Removing $tDir ..."
+    #         rm -rf "$tDir"
+    #     fi
+    # done
+    sleep $POLLING_INTERVAL
 done
