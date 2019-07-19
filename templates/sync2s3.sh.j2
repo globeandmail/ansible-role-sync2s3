@@ -32,7 +32,7 @@ if [ -e $PIDFILE ]; then
 fi
 
 # prep and create the pidfile
-trap "rm -f $PIDFILE" SIGINT SIGKILL SIGTERM SIGQUIT EXIT
+trap "echo sync2s3_{{item.name}} exiting ; rm -f $PIDFILE" SIGINT SIGKILL SIGTERM SIGQUIT EXIT
 echo $$ > "$PIDFILE"
 
 # log startup
@@ -44,6 +44,8 @@ until (false) ; do
         # declare dir + file names
         dirName="`dirname "$watchLine"`"
         fName="`basename "$watchLine"`"
+
+        if [ "$fName" == ".DS_Store" ]; then continue ; fi
 
         # determine the s3 obj key
         prefix=`echo $dirName | sed "s|^$WATCHPATH/\?||"`
@@ -63,9 +65,9 @@ until (false) ; do
 
         # explicitly set mime-type for .vtt files
         if [[ "$fName" = *".vtt" ]]; then
-            echo dryrun $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --no-guess-mime-type --content-type 'text/vtt' --only-show-errors
+            $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --no-guess-mime-type --content-type 'text/vtt' --only-show-errors
         else
-            echo dryrun $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --only-show-errors
+            $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --only-show-errors
         fi
 
         # remove file to indicate successful upload, but leave the file alone if cp fails
