@@ -52,7 +52,7 @@ until (false) ; do
         else
             targetPath="{{item.name}}/$prefix/$fName"
         fi
-        
+
         # don't bother trying to copy directories
         if [ -d "$dirName/$fName" ]; then continue; fi
         # skip files that don't actually exist (or we can't read)
