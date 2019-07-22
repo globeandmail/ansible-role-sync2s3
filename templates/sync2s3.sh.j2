@@ -38,8 +38,8 @@ echo $$ > "$PIDFILE"
 echo "`date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} now watching $WATCHPATH for sync to s3://$BUCKET_NAME/{{item.name}}/..."
 
 # poll the src directory
+failCount=0
 while [ $failCount -lt $ERR_THRESHOLD ]; do
-    failCount=0
     while read watchLine ; do
         # declare dir + file names
         dirName="`dirname "$watchLine"`"
