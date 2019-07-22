@@ -31,7 +31,7 @@ if [ -e $PIDFILE ]; then
 fi
 
 # prep and create the pidfile
-trap "echo `date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} exiting ; rm -f $PIDFILE" SIGINT SIGKILL SIGTERM SIGQUIT EXIT
+trap "echo `date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} exiting ; rm -f $PIDFILE ; exit" SIGINT SIGKILL SIGTERM SIGQUIT EXIT
 echo $$ > "$PIDFILE"
 
 # log startup
