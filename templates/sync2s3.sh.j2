@@ -13,8 +13,6 @@ POLLING_INTERVAL="10"
 exec 2>&1
 exec >> "$SCRIPT_DIR/sync2s3_{{item.name}}.log"
 
-set -e
-
 # preflight checks
 if [ ! -x $AWSCLI_EXE ]; then echo "Could not find awscli!" ; exit 1 ; fi
 if [ ! -d $WATCHPATH ]; then echo "Source dir (watchpath) does not exist"; exit 1 ; fi
@@ -32,7 +30,7 @@ if [ -e $PIDFILE ]; then
 fi
 
 # prep and create the pidfile
-trap "echo sync2s3_{{item.name}} exiting ; rm -f $PIDFILE" SIGINT SIGKILL SIGTERM SIGQUIT EXIT
+trap "echo `date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} exiting ; rm -f $PIDFILE" SIGINT SIGKILL SIGTERM SIGQUIT EXIT
 echo $$ > "$PIDFILE"
 
 # log startup
@@ -40,6 +38,7 @@ echo "`date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} now watching $WATCHPAT
 
 # poll the src directory
 until (false) ; do
+    failCount=0
     find "$WATCHPATH" -type f | while read watchLine ; do
         # declare dir + file names
         dirName="`dirname "$watchLine"`"
@@ -76,9 +75,11 @@ until (false) ; do
             [ -r "$dirName/$fName" ] && rm "$dirName/$fName"
         else
             echo "FAIL"
+            failCount=$(expr $failCount + 1)
         fi
     done
 
+    if [ $failCount -ge 3 ]; then return -1 ; fi
     # clean up empty subdirs (but maybe we want to preserve the dir structure; commented out!)
     # find "$WATCHPATH/"* -maxdepth 0 -type d | while read tDir ; do
     #     if [ "$(find "$tDir" -type f | wc -l)" == "0" ]; then
