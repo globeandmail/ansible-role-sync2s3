@@ -8,6 +8,7 @@ BUCKET_NAME="{{ item.bucket }}"
 PIDFILE="$SCRIPT_DIR/sync2s3_{{item.name}}.pid"
 AWS_CONFIG_FILE="$SCRIPT_DIR/sync2s3_{{item.name}}.cfg"
 POLLING_INTERVAL="10"
+ERR_THRESHOLD="3"
 
 # direct output to logfile
 exec 2>&1
@@ -37,9 +38,9 @@ echo $$ > "$PIDFILE"
 echo "`date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} now watching $WATCHPATH for sync to s3://$BUCKET_NAME/{{item.name}}/..."
 
 # poll the src directory
-until (false) ; do
+while [ $failCount -lt $ERR_THRESHOLD ]; do
     failCount=0
-    find "$WATCHPATH" -type f | while read watchLine ; do
+    while read watchLine ; do
         # declare dir + file names
         dirName="`dirname "$watchLine"`"
         fName="`basename "$watchLine"`"
@@ -77,9 +78,9 @@ until (false) ; do
             echo "FAIL"
             failCount=$(expr $failCount + 1)
         fi
-    done
 
-    if [ $failCount -ge 3 ]; then return -1 ; fi
+    done <<< "$( find \"$WATCHPATH\" -type f )"
+
     # clean up empty subdirs (but maybe we want to preserve the dir structure; commented out!)
     # find "$WATCHPATH/"* -maxdepth 0 -type d | while read tDir ; do
     #     if [ "$(find "$tDir" -type f | wc -l)" == "0" ]; then
@@ -89,3 +90,5 @@ until (false) ; do
     # done
     sleep $POLLING_INTERVAL
 done
+
+echo "Aborting -- Error threshold exceeded!"
