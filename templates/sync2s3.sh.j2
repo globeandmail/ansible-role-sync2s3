@@ -6,7 +6,7 @@ AWSCLI_EXE=`which aws`
 WATCHPATH="{{ item.watch_path }}"
 BUCKET_NAME="{{ item.bucket }}"
 PIDFILE="$SCRIPT_DIR/sync2s3_{{item.name}}.pid"
-AWS_CONFIG_FILE="$SCRIPT_DIR/sync2s3_{{item.name}}.cfg"
+export AWS_SHARED_CREDENTIALS_FILE="$SCRIPT_DIR/sync2s3_{{item.name}}.cfg"
 POLLING_INTERVAL="10"
 ERR_THRESHOLD="3"
 
