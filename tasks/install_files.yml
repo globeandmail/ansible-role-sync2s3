@@ -6,7 +6,7 @@
     owner: "{{ item.user }}"
     group: "{{ item.grp|default(item.user) }}"
   with_items:
-  - "{{ item.install_path }}"
+  - "{{ item.install_path }}/processing"
   - "{{ item.watch_path }}"
   loop_control:
     loop_var: newdir

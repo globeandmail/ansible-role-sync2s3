@@ -8,8 +8,9 @@ BUCKET_NAME="{{ item.bucket }}"
 PIDFILE="$SCRIPT_DIR/sync2s3_{{item.name}}.pid"
 export AWS_SHARED_CREDENTIALS_FILE="" # avoid using ~/.aws/credentials
 export AWS_CONFIG_FILE="$SCRIPT_DIR/sync2s3_{{item.name}}.cfg"
-POLLING_INTERVAL="10"
+POLLING_INTERVAL="15"
 ERR_THRESHOLD="3"
+HASH_IDX_FILE="$SCRIPT_DIR/processing/md5.hash.list_{{item.name}}"
 
 # direct output to logfile
 exec 2>&1
@@ -40,6 +41,7 @@ echo "`date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} now watching $WATCHPAT
 
 # poll the src directory
 failCount=0
+prevHash=""
 while [ $failCount -lt $ERR_THRESHOLD ]; do
     while read watchLine ; do
         # declare dir + file names
@@ -47,6 +49,29 @@ while [ $failCount -lt $ERR_THRESHOLD ]; do
         fName="`basename "$watchLine"`"
 
         if [ "$fName" == ".DS_Store" ]; then continue ; fi
+
+        # check for file in md5 index
+        if [ -r "$HASH_IDX_FILE" ]; then
+          prevHash="$( egrep "$watchLine\$" "$HASH_IDX_FILE" | cut -d, -f1 )"
+        else
+          prevHash="none"
+        fi
+
+        # calc the current hash based on last line of file (speeds things up a bit for large files)
+        thisHash=$(tail -n1 "$watchLine" | md5sum | awk '{print $1}')
+
+        # do they match?
+        if [ "$thisHash" == "$prevHash" ]; then
+          # Hashes match, move ahead
+          [ -r "$HASH_IDX_FILE" ] && sed -i "\_$watchLine\$_d" "$HASH_IDX_FILE"
+          echo "$thisHash,$watchLine" >> "$HASH_IDX_FILE"
+        else
+          # No hash match, loop again
+          echo "$watchLine is new, or is still uploading..."
+          [ -r "$HASH_IDX_FILE" ] && sed -i "\_$watchLine\$_d" "$HASH_IDX_FILE"
+          echo "$thisHash,$watchLine" >> "$HASH_IDX_FILE"
+          continue
+        fi
 
         # determine the s3 obj key
         prefix=`echo $dirName | sed "s|^$WATCHPATH/\?||"`
