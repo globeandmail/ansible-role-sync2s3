@@ -62,6 +62,12 @@ while [ $failCount -lt $ERR_THRESHOLD ]; do
 
         # do they match?
         if [ "$thisHash" == "$prevHash" ]; then
+          # empty files are quite possibly pending in 'finder'
+          if [ "$(stat "$watchLine"|egrep -o "Size: [0-9]+")" == "Size: 0" ]; then
+            echo "$watchLine appears to be stalled at 0b - waiting ..."
+            continue;
+          fi
+
           # Hashes match, move ahead
           [ -r "$HASH_IDX_FILE" ] && sed -i "\_$watchLine\$_d" "$HASH_IDX_FILE"
           echo "$thisHash,$watchLine" >> "$HASH_IDX_FILE"
@@ -81,8 +87,6 @@ while [ $failCount -lt $ERR_THRESHOLD ]; do
             targetPath="{{item.name}}/$prefix/$fName"
         fi
 
-        # don't bother trying to copy directories
-        if [ -d "$dirName/$fName" ]; then continue; fi
         # skip files that don't actually exist (or we can't read)
         if [ ! -r "$dirName/$fName" ]; then continue; fi
 
