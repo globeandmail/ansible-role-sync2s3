@@ -33,7 +33,8 @@ if [ -e $PIDFILE ]; then
 fi
 
 # prep and create the pidfile
-trap "echo `date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} exiting ; rm -f $PIDFILE ; exit" SIGINT SIGKILL SIGTERM SIGQUIT EXIT
+# TODO - wrong date is output (it retains the date from when the script started up)
+trap "echo `date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} exiting ; rm -f $PIDFILE" SIGINT SIGKILL SIGTERM SIGQUIT EXIT
 echo $$ > "$PIDFILE"
 
 # log startup
@@ -44,6 +45,8 @@ failCount=0
 prevHash=""
 while [ $failCount -lt $ERR_THRESHOLD ]; do
     while read watchLine ; do
+        if [ "$watchLine" == "" ]; then continue; fi
+
         # declare dir + file names
         dirName="`dirname "$watchLine"`"
         fName="`basename "$watchLine"`"
@@ -57,12 +60,16 @@ while [ $failCount -lt $ERR_THRESHOLD ]; do
           prevHash="none"
         fi
 
-        # calc the current hash based on last line of file (speeds things up a bit for large files)
-        thisHash=$(tail -n1 "$watchLine" | md5sum | awk '{print $1}')
+        ## calc the current hash based on last line of file (speeds things up a bit for large files)
+        #thisHash=$(tail -n1 "$watchLine" | md5sum | awk '{print $1}')
+
+        # calc the current hash based on file size
+        thisHash=$(stat "$watchLine" | egrep -o "Size: [0-9]+" | md5sum | awk '{print $1}')
 
         # do they match?
         if [ "$thisHash" == "$prevHash" ]; then
           # empty files are quite possibly pending in 'finder'
+          # note: 'find' should not be feeding any empty files to this while-loop, so if Size:0 happens, something ain't right.
           if [ "$(stat "$watchLine"|egrep -o "Size: [0-9]+")" == "Size: 0" ]; then
             echo "$watchLine appears to be stalled at 0b - waiting ..."
             continue;
@@ -109,7 +116,7 @@ while [ $failCount -lt $ERR_THRESHOLD ]; do
             failCount=$(expr $failCount + 1)
         fi
 
-    done <<< "$( find "$WATCHPATH" -type f \! -empty \! -name '.DS_Store' )"
+    done <<< "$( find "$WATCHPATH" -type f ! -empty ! -name '.DS_Store' )"
 
     # clean up empty subdirs (but maybe we want to preserve the dir structure; commented out!)
     # find "$WATCHPATH/"* -maxdepth 0 -type d | while read tDir ; do
