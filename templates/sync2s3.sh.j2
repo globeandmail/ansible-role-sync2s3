@@ -63,11 +63,11 @@ while [ $failCount -lt $ERR_THRESHOLD ]; do
           prevHash="none"
         fi
 
-        ## calc the current hash based on last line of file (speeds things up a bit for large files)
-        #thisHash=$(tail -n1 "$watchLine" | md5sum | awk '{print $1}')
+        ## calc the current hash based on last line of file (potentially speed things up for large files)
+        thisHash=$(tail -n1 "$watchLine" | md5sum | awk '{print $1}')
 
         # calc the current hash based on file size
-        thisHash=$(stat "$watchLine" | egrep -o "Size: [0-9]+" | md5sum | awk '{print $1}')
+        #thisHash=$(stat "$watchLine" | egrep -o "Size: [0-9]+" | md5sum | awk '{print $1}')
 
         # do they match?
         if [ "$thisHash" == "$prevHash" ]; then
@@ -78,11 +78,11 @@ while [ $failCount -lt $ERR_THRESHOLD ]; do
             continue;
           fi
 
-          # Hashes match, move ahead
+          # Hashes match, rm from hash idx and move ahead
           [ -r "$HASH_IDX_FILE" ] && sed -i "\_$watchLine\$_d" "$HASH_IDX_FILE"
-          echo "$thisHash,$watchLine" >> "$HASH_IDX_FILE"
+
         else
-          # No hash match, loop again
+          # No hash match, upd hash idx & loop again
           echo "$watchLine is new, or is still uploading..."
           [ -r "$HASH_IDX_FILE" ] && sed -i "\_$watchLine\$_d" "$HASH_IDX_FILE"
           echo "$thisHash,$watchLine" >> "$HASH_IDX_FILE"
