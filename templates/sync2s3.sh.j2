@@ -75,8 +75,8 @@ while [ $failCount -lt $ERR_THRESHOLD ]; do
         # thisHash=$( stat "$watchLine" | egrep -o "(Access|Modify|Change): [0-9]{4}.*$" | md5sum | awk '{print $1}' )
 
         # okay, how about this.
-        thisModify=$( stat "$watchLine" | egrep -o "Modify: [0-9]{4}.*$" | md5sum | awk '{print $1}' )
-        thisChange=$( stat "$watchLine" | egrep -o "Change: [0-9]{4}.*$" | md5sum | awk '{print $1}' )
+        thisModify=$( stat "$watchLine" | egrep -o "Modify: [0-9]{4}.*$" | sed "s/^Modify: //g" | md5sum | awk '{print $1}' )
+        thisChange=$( stat "$watchLine" | egrep -o "Change: [0-9]{4}.*$" | sed "s/^Change: //g" | md5sum | awk '{print $1}' )
 
         # # do they match?
         # if [ "$thisHash" == "$prevHash" ]; then
