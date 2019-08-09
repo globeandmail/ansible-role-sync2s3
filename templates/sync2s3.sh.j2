@@ -57,11 +57,11 @@ while [ $failCount -lt $ERR_THRESHOLD ]; do
         if [ "$fName" == ".DS_Store" ]; then continue ; fi
 
         # check for file in md5 index
-        if [ -r "$HASH_IDX_FILE" ]; then
-          prevHash="$( egrep "$watchLine\$" "$HASH_IDX_FILE" | cut -d, -f1 )"
-        else
-          prevHash="none"
-        fi
+        # if [ -r "$HASH_IDX_FILE" ]; then
+        #   prevHash="$( egrep "$watchLine\$" "$HASH_IDX_FILE" | cut -d, -f1 )"
+        # else
+        #   prevHash="none"
+        # fi
 
         ## calc the current hash based on last line of file (potentially speed things up for large files)
         # thisHash=$(tail -n1 "$watchLine" | md5sum | awk '{print $1}')
@@ -72,21 +72,36 @@ while [ $failCount -lt $ERR_THRESHOLD ]; do
         # approach it from the other way!
         # stat Access, Modify, Change values appear to remain static during creation, and change after fclose
         # if hash is the same, keep looping.  If hash changes, then it's done (presumably)
-        thisHash=$( stat "$watchLine" | egrep -o "(Access|Modify|Change): [0-9]{4}.*$" | md5sum | awk '{print $1}' )
+        # thisHash=$( stat "$watchLine" | egrep -o "(Access|Modify|Change): [0-9]{4}.*$" | md5sum | awk '{print $1}' )
 
-        # do they match?
-        if [ "$thisHash" == "$prevHash" ]; then
-          # Hashes match, rm from hash idx and loop again
-          echo "$(date '+%Y-%m-%d %H:%M:%S') - $watchLine is new, or is still uploading..."
-          [ -r "$HASH_IDX_FILE" ] && sed -i "\%$watchLine\$%d" "$HASH_IDX_FILE"
-          echo "$thisHash,$watchLine" >> "$HASH_IDX_FILE"
+        # okay, how about this.
+        thisModify=$( stat "$watchLine" | egrep -o "Modify: [0-9]{4}.*$" | md5sum | awk '{print $1}' )
+        thisChange=$( stat "$watchLine" | egrep -o "Change: [0-9]{4}.*$" | md5sum | awk '{print $1}' )
+
+        # # do they match?
+        # if [ "$thisHash" == "$prevHash" ]; then
+        #   # Hashes match, rm from hash idx and loop
+        #   echo "$(date '+%Y-%m-%d %H:%M:%S') - $watchLine is new, or is still uploading..."
+        #   [ -r "$HASH_IDX_FILE" ] && sed -i "\%$watchLine\$%d" "$HASH_IDX_FILE"
+        #   echo "$thisHash,$watchLine" >> "$HASH_IDX_FILE"
+        #   continue
+        # else
+        #   # new file! don't upload it yet! record in idx and loop
+        #   if [ "$prevHash" == "none" ]; then
+        #     echo "$thisHash,$watchLine" >> "$HASH_IDX_FILE"            
+        #     continue 2
+        #   fi
+
+        #   # No hash match, upd hash idx & move ahead
+        #   # echo "$(date '+%Y-%m-%d %H:%M:%S') - $watchLine is new, or is still uploading..."
+        #   [ -r "$HASH_IDX_FILE" ] && sed -i "\%$watchLine\$%d" "$HASH_IDX_FILE"
+        #   # echo "$thisHash,$watchLine" >> "$HASH_IDX_FILE"
+        #   # continue
+        # fi
+
+        if [ "$thisModify" == "$thisChange" ]; then
+          echo "$watchLine is still uploading to fileshare ..."
           continue
-        else
-          # No hash match, upd hash idx & move ahead
-          # echo "$(date '+%Y-%m-%d %H:%M:%S') - $watchLine is new, or is still uploading..."
-          [ -r "$HASH_IDX_FILE" ] && sed -i "\%$watchLine\$%d" "$HASH_IDX_FILE"
-          # echo "$thisHash,$watchLine" >> "$HASH_IDX_FILE"
-          # continue
         fi
 
         # determine the s3 obj key
