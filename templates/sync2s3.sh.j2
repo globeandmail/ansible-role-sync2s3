@@ -3,14 +3,12 @@
 
 SCRIPT_DIR=`dirname "$0"`
 AWSCLI_EXE=`which aws`
+INW_EXE=`which inotifywait`
 WATCHPATH="{{ item.watch_path }}"
 BUCKET_NAME="{{ item.bucket }}"
 PIDFILE="$SCRIPT_DIR/sync2s3_{{item.name}}.pid"
 export AWS_SHARED_CREDENTIALS_FILE="" # avoid using ~/.aws/credentials
 export AWS_CONFIG_FILE="$SCRIPT_DIR/sync2s3_{{item.name}}.cfg"
-POLLING_INTERVAL="15"
-ERR_THRESHOLD="3"
-HASH_IDX_FILE="$SCRIPT_DIR/processing/md5.hash.list_{{item.name}}"
 
 # direct output to logfile
 exec 2>&1
@@ -18,6 +16,7 @@ exec >> "$SCRIPT_DIR/sync2s3_{{item.name}}.log"
 
 # preflight checks
 if [ ! -x $AWSCLI_EXE ]; then echo "Could not find awscli!" ; exit 1 ; fi
+if [ ! -x "$INW_EXE" ]; then echo "Could not find inotifywait!" ; exit 1 ; fi
 if [ ! -d $WATCHPATH ]; then echo "Source dir (watchpath) does not exist"; exit 1 ; fi
 if [ "$WATCHPATH" == "/" ]; then echo "WATCHPATH is root dir...?!" ; exit 1 ; fi
 if [ "$BUCKET_NAME" == "" ]; then echo "No bucket name...?" ; exit 1 ; fi
@@ -40,69 +39,16 @@ echo $$ > "$PIDFILE"
 # log startup
 echo "`date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} now watching $WATCHPATH for sync to s3://$BUCKET_NAME/{{item.name}}/..."
 
-# remove hash file if it exists
-[ -r "$HASH_IDX_FILE" ] && rm "$HASH_IDX_FILE"
-
-# poll the src directory
-failCount=0
-prevHash=""
-while [ $failCount -lt $ERR_THRESHOLD ]; do
+$INW_EXE -qmr -e close_write -e moved_to --format "%w%f" --exclude ".dropbox.cache" --exclude ".dropbox" "${WATCHPATH}" |
     while read watchLine ; do
         if [ "$watchLine" == "" ]; then continue; fi
+        if [ -d "$watchLine" ]; then continue; fi
 
         # declare dir + file names
         dirName="`dirname "$watchLine"`"
         fName="`basename "$watchLine"`"
 
         if [ "$fName" == ".DS_Store" ]; then continue ; fi
-
-        # check for file in md5 index
-        # if [ -r "$HASH_IDX_FILE" ]; then
-        #   prevHash="$( egrep "$watchLine\$" "$HASH_IDX_FILE" | cut -d, -f1 )"
-        # else
-        #   prevHash="none"
-        # fi
-
-        ## calc the current hash based on last line of file (potentially speed things up for large files)
-        # thisHash=$(tail -n1 "$watchLine" | md5sum | awk '{print $1}')
-
-        # calc the current hash based on file size
-        #thisHash=$(stat "$watchLine" | egrep -o "Size: [0-9]+" | md5sum | awk '{print $1}')
-
-        # approach it from the other way!
-        # stat Access, Modify, Change values appear to remain static during creation, and change after fclose
-        # if hash is the same, keep looping.  If hash changes, then it's done (presumably)
-        # thisHash=$( stat "$watchLine" | egrep -o "(Access|Modify|Change): [0-9]{4}.*$" | md5sum | awk '{print $1}' )
-
-        # okay, how about this.
-        thisModify=$( stat "$watchLine" | egrep -o "Modify: [0-9]{4}.*$" | sed "s/^Modify: //g" | md5sum | awk '{print $1}' )
-        thisChange=$( stat "$watchLine" | egrep -o "Change: [0-9]{4}.*$" | sed "s/^Change: //g" | md5sum | awk '{print $1}' )
-
-        # # do they match?
-        # if [ "$thisHash" == "$prevHash" ]; then
-        #   # Hashes match, rm from hash idx and loop
-        #   echo "$(date '+%Y-%m-%d %H:%M:%S') - $watchLine is new, or is still uploading..."
-        #   [ -r "$HASH_IDX_FILE" ] && sed -i "\%$watchLine\$%d" "$HASH_IDX_FILE"
-        #   echo "$thisHash,$watchLine" >> "$HASH_IDX_FILE"
-        #   continue
-        # else
-        #   # new file! don't upload it yet! record in idx and loop
-        #   if [ "$prevHash" == "none" ]; then
-        #     echo "$thisHash,$watchLine" >> "$HASH_IDX_FILE"            
-        #     continue 2
-        #   fi
-
-        #   # No hash match, upd hash idx & move ahead
-        #   # echo "$(date '+%Y-%m-%d %H:%M:%S') - $watchLine is new, or is still uploading..."
-        #   [ -r "$HASH_IDX_FILE" ] && sed -i "\%$watchLine\$%d" "$HASH_IDX_FILE"
-        #   # echo "$thisHash,$watchLine" >> "$HASH_IDX_FILE"
-        #   # continue
-        # fi
-
-        if [ "$thisModify" == "$thisChange" ]; then
-          echo "$watchLine is still uploading to fileshare ..."
-          continue
-        fi
 
         # determine the s3 obj key
         prefix=`echo $dirName | sed "s|^$WATCHPATH/\?||"`
@@ -125,26 +71,15 @@ while [ $failCount -lt $ERR_THRESHOLD ]; do
             $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --only-show-errors
         fi
 
-        # remove file to indicate successful upload, but leave the file alone if cp fails
+#        # remove file to indicate successful upload, but leave the file alone if cp fails
         if [ $? == 0 ]; then
             echo "OK"
-            [ -r "$dirName/$fName" ] && rm "$dirName/$fName"
+#            [ -r "$dirName/$fName" ] && rm "$dirName/$fName"
         else
             echo "FAIL"
-            failCount=$(expr $failCount + 1)
         fi
 
-    done <<< "$( find "$WATCHPATH" -type f ! -empty ! -name '.DS_Store' )"
+    done
 
-    # clean up empty subdirs (but maybe we want to preserve the dir structure; commented out!)
-    # find "$WATCHPATH/"* -maxdepth 0 -type d | while read tDir ; do
-    #     if [ "$(find "$tDir" -type f | wc -l)" == "0" ]; then
-    #         echo "Removing $tDir ..."
-    #         rm -rf "$tDir"
-    #     fi
-    # done
-    sleep $POLLING_INTERVAL
-done
-
-echo "Aborting -- Error threshold exceeded!"
 rm -f "$PIDFILE"
+echo "Done....?"
