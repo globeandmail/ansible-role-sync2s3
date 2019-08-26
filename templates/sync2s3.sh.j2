@@ -15,9 +15,9 @@ exec 2>&1
 exec >> "$SCRIPT_DIR/sync2s3_{{item.name}}.log"
 
 # preflight checks
-if [ ! -x $AWSCLI_EXE ]; then echo "Could not find awscli!" ; exit 1 ; fi
+if [ ! -x "$AWSCLI_EXE" ]; then echo "Could not find awscli!" ; exit 1 ; fi
 if [ ! -x "$INW_EXE" ]; then echo "Could not find inotifywait!" ; exit 1 ; fi
-if [ ! -d $WATCHPATH ]; then echo "Source dir (watchpath) does not exist"; exit 1 ; fi
+if [ ! -d "$WATCHPATH" ]; then echo "Source dir (watchpath) does not exist"; exit 1 ; fi
 if [ "$WATCHPATH" == "/" ]; then echo "WATCHPATH is root dir...?!" ; exit 1 ; fi
 if [ "$BUCKET_NAME" == "" ]; then echo "No bucket name...?" ; exit 1 ; fi
 
