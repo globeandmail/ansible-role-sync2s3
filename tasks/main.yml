@@ -1,8 +1,8 @@
 ---
-# - name: ensure inotify-tools is installed
-#   apt:
-#     name: "inotify-tools"
-#     state: "present"
+- name: ensure inotify-tools is installed
+  apt:
+    name: "inotify-tools"
+    state: "present"
 
 - name: install scripts, configs, and @reboot-cronjob...
   include_tasks: install_files.yml
