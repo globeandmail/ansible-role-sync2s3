@@ -11,6 +11,10 @@ PIDFILE="$SCRIPT_DIR/sync2s3_{{item.name}}.pid"
 export AWS_SHARED_CREDENTIALS_FILE="" # avoid using ~/.aws/credentials
 export AWS_CONFIG_FILE="$SCRIPT_DIR/sync2s3_{{item.name}}.cfg"
 
+function end_cleanup {
+    echo `date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} exiting ; rm -f $PIDFILE ; exit
+}
+
 # direct output to logfile
 exec 2>&1
 exec >> "$SCRIPT_DIR/sync2s3_{{item.name}}.log"
@@ -32,9 +36,8 @@ if [ -e $PIDFILE ]; then
   fi
 fi
 
-# prep and create the pidfile
-# TODO - fix - wrong date is output (it retains the date from when the script started up)
-trap "echo `date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} exiting ; rm -f $PIDFILE ; exit" SIGINT SIGKILL SIGTERM SIGQUIT
+# prep and create the pidfile, and set up the trap for cleanup on exit
+trap end_cleanup SIGINT SIGKILL SIGTERM SIGQUIT
 echo $$ > "$PIDFILE"
 
 # log startup
@@ -72,10 +75,8 @@ $INW_EXE -qmr -e close_write -e moved_to --format "%w%f" --exclude ".dropbox.cac
             $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --only-show-errors
         fi
 
-#        # remove file to indicate successful upload, but leave the file alone if cp fails
         if [ $? == 0 ]; then
             echo "OK"
-#            [ -r "$dirName/$fName" ] && rm "$dirName/$fName"
         else
             echo "FAIL"
         fi
