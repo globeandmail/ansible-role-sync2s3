@@ -4,7 +4,8 @@
 SCRIPT_DIR=`dirname "$0"`
 AWSCLI_EXE=`which aws`
 INW_EXE=`which inotifywait`
-WATCHPATH="{{ item.watch_path }}"
+DBOX_ROOT=$(ls -d ~{{ item.user }}/Dropbox)
+WATCHPATH="${DBOX_ROOT}/{{ item.watch_path }}"
 BUCKET_NAME="{{ item.bucket }}"
 PIDFILE="$SCRIPT_DIR/sync2s3_{{item.name}}.pid"
 export AWS_SHARED_CREDENTIALS_FILE="" # avoid using ~/.aws/credentials
@@ -32,7 +33,7 @@ if [ -e $PIDFILE ]; then
 fi
 
 # prep and create the pidfile
-# TODO - wrong date is output (it retains the date from when the script started up)
+# TODO - fix - wrong date is output (it retains the date from when the script started up)
 trap "echo `date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} exiting ; rm -f $PIDFILE ; exit" SIGINT SIGKILL SIGTERM SIGQUIT
 echo $$ > "$PIDFILE"
 

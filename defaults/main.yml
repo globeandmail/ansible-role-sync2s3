@@ -1,8 +1,8 @@
 ---
 sync2s3:
 - name: yoursync
-  install_path: "/tmp/sync2s3"
-  watch_path: "/tmp/sync2s3-src"
+  install_path: "~user"
+  watch_path: "sync2s3-src"   # path inside of ~(user)/Dropbox/
   bucket: "some-s3-bucket"
   user: somebody
   grp: somegroup
