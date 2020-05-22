@@ -1,20 +1,10 @@
 ---
-- name: mk necessary dir(s)
-  file:
-    path: "{{ newdir }}"
-    state: "directory"
-    owner: "{{ item.user }}"
-    group: "{{ item.grp|default(item.user) }}"
-  with_items:
-  - "{{ item.install_path }}/processing"
-  - "{{ item.watch_path }}"
-  loop_control:
-    loop_var: newdir
 - name: place sync script
   template:
     src: "sync2s3.sh.j2"
     dest: "{{ item.install_path }}/sync2s3_{{ item.name }}.sh"
-    mode: 0755
+#    mode: 0755
+    mode: 0644  # disabled exec until cutover is approved & performed
     owner: "{{ item.user }}"
     group: "{{ item.grp | default(item.user) }}"
 - name: place config file
@@ -37,3 +27,4 @@
     special_time: "reboot"
     job: "{{ item.install_path }}/sync2s3_{{ item.name }}.sh > /dev/null &"
     user: "{{ item.user }}"
+    disabled: "yes" # disabled until cutover is approved & performed
