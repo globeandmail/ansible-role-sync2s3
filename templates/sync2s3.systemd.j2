@@ -1,0 +1,14 @@
+[Unit]
+Description=Dropbox Sync to S3 for {{ item.name }}
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={{ item.install_path }}/sync2s3_{{ item.name }}.sh
+PIDFile={{ item.install_path }}/sync2s3_{{ item.name }}.pid
+RestartSec=3
+Restart=on-failure
+User={{ item.user }}
+
+[Install]
+WantedBy=multi-user.target
