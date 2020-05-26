@@ -20,9 +20,18 @@
     mode: 0644
     owner: "root"
     group: "root"
-- name: cronjob to ensure task is running (@reboot)
-  cron:
-    name: "sync2s3_{{item.name}}"
-    special_time: "reboot"
-    job: "{{ item.install_path }}/sync2s3_{{ item.name }}.sh > /dev/null &"
-    user: "{{ item.user }}"
+- name: Install systemd config
+  template:
+    src: "sync2s3.systemd.j2"
+    dest: "/etc/systemd/system/sync2s3_{{item.name}}.service"
+    mode: 0644
+    owner: "root"
+    group: "root"
+  notify: "daemon-reload"
+- name: Force handlers to run (i.e. daemon-reload if it needs to happen)
+  meta: flush_handlers
+- name: Start and enable sync2s3 service for {{item.name}}
+  systemd:
+    enabled: "yes"
+    state: "started"
+    name: "sync2s3_{{item.name}}.service"

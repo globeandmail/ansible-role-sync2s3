@@ -70,9 +70,9 @@ $INW_EXE -qmr -e close_write -e moved_to --format "%w%f" --exclude ".dropbox.cac
 
         # explicitly set mime-type for .vtt files
         if [[ "$fName" = *".vtt" ]]; then
-            $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --no-guess-mime-type --content-type 'text/vtt' --only-show-errors
+            echo DEBUG -- $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --no-guess-mime-type --content-type 'text/vtt' --only-show-errors
         else
-            $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --only-show-errors
+            echo DEBUG -- $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --only-show-errors
         fi
 
         if [ $? == 0 ]; then
