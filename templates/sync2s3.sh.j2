@@ -10,6 +10,8 @@ BUCKET_NAME="{{ item.bucket }}"
 PIDFILE="$SCRIPT_DIR/sync2s3_{{item.name}}.pid"
 export AWS_SHARED_CREDENTIALS_FILE="" # avoid using ~/.aws/credentials
 export AWS_CONFIG_FILE="$SCRIPT_DIR/sync2s3_{{item.name}}.cfg"
+QueueURL="{{ item.sqs_url }}"
+OptThreshold=500000
 
 function end_cleanup {
     echo `date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} exiting ; rm -f $PIDFILE ; exit
@@ -77,6 +79,17 @@ $INW_EXE -qmr -e close_write -e moved_to --format "%w%f" --exclude ".dropbox.cac
 
         if [ $? == 0 ]; then
             echo "OK"
+            if [[ "$fName" = *".jpg" || "$fName" = *".jpeg" || "$fName" = *".png" ]]; then
+                if [[ $(stat -c "%s" "$dirName/$fName") -ge ${OptThreshold} ]]; then
+                    echo "$(date '+%Y-%m-%d %H:%M:%S') : Sending SQS message ... "
+                    $AWSCLI_EXE sqs send-message --queue-url "${QueueURL}" --message-body "{\"s3bucket\": \"${BUCKET_NAME}\", \"s3key\": \"${targetPath}\"}" --message-group-id "OptImages" --message-deduplication-id $(date "+%Y%m%d%H%M")
+                    if [ $? == 0 ]; then
+                        echo "OK"
+                    else
+                        echo "FAIL"
+                    fi
+                fi
+            fi
         else
             echo "FAIL"
         fi
