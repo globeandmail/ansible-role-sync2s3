@@ -1,0 +1,9 @@
+---
+handlers:
+- name: "daemon-reload"
+  systemd:
+    daemon_reload: "yes"
+- name: "restart-sync2s3_{{item.name}}"
+  systemd:
+    state: "restarted"
+    name: "sync2s3_{{item.name}}.service"
