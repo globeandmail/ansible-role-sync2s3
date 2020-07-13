@@ -6,6 +6,7 @@
     mode: 0755
     owner: "{{ item.user }}"
     group: "{{ item.grp | default(item.user) }}"
+  notify: "restart-service"
 - name: place config file
   template:
     src: "sync2s3.cfg.j2"
@@ -13,6 +14,7 @@
     mode: 0600
     owner: "{{ item.user }}"
     group: "{{ item.grp|default(item.user) }}"
+  notify: "restart-service"
 - name: place logrotate file
   template:
     src: "sync2s3.logrotate.j2"
