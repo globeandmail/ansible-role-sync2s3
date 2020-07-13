@@ -1,5 +1,5 @@
 ---
-- include_task: define_dynamic_handlers.yml
+- include_tasks: define_dynamic_handlers.yml
 
 - name: place sync script
   template:
