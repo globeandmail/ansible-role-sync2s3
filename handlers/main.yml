@@ -1,8 +1,4 @@
-# ---
-# - name: "daemon-reload"
-#   systemd:
-#     daemon_reload: "yes"
-# - name: "restart-service"
-#   systemd:
-#     state: "restarted"
-#     name: "sync2s3_{{item.name}}.service"
+---
+- name: "daemon-reload"
+  systemd:
+    daemon_reload: "yes"
