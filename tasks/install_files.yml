@@ -1,6 +1,4 @@
 ---
-- include_tasks: define_dynamic_handlers.yml
-
 - name: place sync script
   template:
     src: "sync2s3.sh.j2"
