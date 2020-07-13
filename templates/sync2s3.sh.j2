@@ -81,8 +81,9 @@ $INW_EXE -qmr -e close_write -e moved_to --format "%w%f" --exclude ".dropbox.cac
             echo "OK"
             if [[ "$fName" = *".jpg" || "$fName" = *".jpeg" || "$fName" = *".png" ]]; then
                 if [[ $(stat -c "%s" "$dirName/$fName") -ge ${OptThreshold} ]]; then
-                    echo -n "$(date '+%Y-%m-%d %H:%M:%S') : Sending SQS message ... "
-                    $AWSCLI_EXE sqs send-message --queue-url "${QueueURL}" --message-body "{\"s3bucket\": \"${BUCKET_NAME}\", \"s3key\": \"${targetPath}\"}" --message-group-id "OptImages" --message-deduplication-id "$(echo \"${targetPath}\" | md5sum | cut -d' ' -f1)"_$(date "+%Y%m%d%H%M") > /dev/null 2>&1
+                    DeDupeID=$(echo "${targetPath}" | md5sum | cut -d' ' -f1)"_$(date "+%Y%m%d%H%M")
+                    echo -n "$(date '+%Y-%m-%d %H:%M:%S') : Sending SQS message - (DeDupe ID: ${DeDupeID}) ... "
+                    $AWSCLI_EXE sqs send-message --queue-url "${QueueURL}" --message-body "{\"s3bucket\": \"${BUCKET_NAME}\", \"s3key\": \"${targetPath}\"}" --message-group-id "OptImages" --message-deduplication-id "${DeDupeID}" > /dev/null 2>&1
                     if [ $? == 0 ]; then
                         echo "OK"
                     else
