@@ -80,7 +80,7 @@ $INW_EXE -qmr -e close_write -e moved_to --format "%w%f" --exclude ".dropbox.cac
         if [ $? == 0 ]; then
             echo "OK"
             if [[ "$fName" != "nopt_"* && "/$targetPath"* != *"/nopt_/"* ]]; then
-                if [[ "$fName" = *".jpg" || "$fName" = *".jpeg" || "$fName" = *".png" ]]; then
+                if [[ "$fName" = *".jpg" || "$fName" = *".jpeg" || "$fName" = *".png" || "$fName" = *".gif" ]]; then
                     if [[ $(stat -c "%s" "$dirName/$fName") -ge ${OptThreshold} ]]; then
                         DeDupeID=$(echo "${targetPath}" | md5sum | cut -d' ' -f1)_$(date "+%Y%m%d%H%M")
                         echo -n "$(date '+%Y-%m-%d %H:%M:%S') : Sending SQS message - (DeDupe ID: ${DeDupeID}) ... "
