@@ -10,6 +10,8 @@ BUCKET_NAME="{{ item.bucket }}"
 PIDFILE="$SCRIPT_DIR/sync2s3_{{item.name}}.pid"
 export AWS_SHARED_CREDENTIALS_FILE="" # avoid using ~/.aws/credentials
 export AWS_CONFIG_FILE="$SCRIPT_DIR/sync2s3_{{item.name}}.cfg"
+QueueURL="{{ item.sqs_url }}"
+OptThreshold=500000
 
 function end_cleanup {
     echo `date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} exiting ; rm -f $PIDFILE ; exit
@@ -70,13 +72,27 @@ $INW_EXE -qmr -e close_write -e moved_to --format "%w%f" --exclude ".dropbox.cac
 
         # explicitly set mime-type for .vtt files
         if [[ "$fName" = *".vtt" ]]; then
-            $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --no-guess-mime-type --content-type 'text/vtt' --only-show-errors
+            $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --acl public-read --no-guess-mime-type --content-type 'text/vtt' --only-show-errors
         else
-            $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --only-show-errors
+            $AWSCLI_EXE s3 cp "$dirName/$fName" "s3://$BUCKET_NAME/$targetPath" --acl public-read --only-show-errors
         fi
 
         if [ $? == 0 ]; then
             echo "OK"
+            if [[ "$fName" != "nopt_"* && "/$targetPath"* != *"/nopt_/"* ]]; then
+                if [[ "$fName" = *".jpg" || "$fName" = *".jpeg" || "$fName" = *".png" || "$fName" = *".JPG" || "$fName" = *".JPEG" || "$fName" = *".PNG" ]]; then
+                    if [[ $(stat -c "%s" "$dirName/$fName") -ge ${OptThreshold} ]]; then
+                        DeDupeID=$(echo "${targetPath}" | md5sum | cut -d' ' -f1)_$(date "+%Y%m%d%H%M")
+                        echo -n "$(date '+%Y-%m-%d %H:%M:%S') : Sending SQS message - (DeDupe ID: ${DeDupeID}) ... "
+                        $AWSCLI_EXE sqs send-message --queue-url "${QueueURL}" --message-body "{\"s3bucket\": \"${BUCKET_NAME}\", \"s3key\": \"${targetPath}\"}" --message-group-id "OptImages" --message-deduplication-id "${DeDupeID}" > /dev/null 2>&1
+                        if [ $? == 0 ]; then
+                            echo "OK"
+                        else
+                            echo "FAIL"
+                        fi
+                    fi
+                fi
+            fi
         else
             echo "FAIL"
         fi
