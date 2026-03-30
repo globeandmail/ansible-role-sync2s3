@@ -45,8 +45,9 @@ echo $$ > "$PIDFILE"
 # log startup
 echo "`date '+%Y-%m-%d %H:%M:%S'` - sync2s3_{{item.name}} now watching $WATCHPATH for sync to s3://$BUCKET_NAME/{{item.name}}/..."
 
-$INW_EXE -qmr -e close_write -e moved_to --format "%w%f" --exclude ".dropbox.cache" --exclude ".dropbox" "${WATCHPATH}" |
+$INW_EXE -qmr -e close_write -e moved_to --format "%w%f" --exclude ".dropbox.cache" --exclude ".dropbox" --exclude ".maestral.cache" --exclude "maestral-venv" "${WATCHPATH}" |
     while read watchLine ; do
+	sleep 1
         if [ "$watchLine" == "" ]; then continue; fi
         if [ -d "$watchLine" ]; then continue; fi
 
